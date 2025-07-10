@@ -1,0 +1,107 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <!-- Attribute Frame Template -->
+    <Frame name="CE_AttributeTemplate" virtual="true">
+        <Size x="200" y="30"/>
+        <Layers>
+            <Layer level="ARTWORK">
+                <FontString name="$parentLabel" inherits="GameFontNormal" justifyH="LEFT">
+                    <Size x="80" y="20"/>
+                    <Anchors>
+                        <Anchor point="LEFT" x="5" y="0"/>
+                    </Anchors>
+                </FontString>
+                <FontString name="$parentValue" inherits="GameFontHighlight" justifyH="CENTER">
+                    <Size x="30" y="20"/>
+                    <Anchors>
+                        <Anchor point="LEFT" relativeTo="$parentLabel" relativePoint="RIGHT" x="10" y="0"/>
+                    </Anchors>
+                </FontString>
+            </Layer>
+        </Layers>
+        <Frames>
+            <Button name="$parentMinus" inherits="UIPanelButtonTemplate">
+                <Size x="20" y="20"/>
+                <Anchors>
+                    <Anchor point="LEFT" relativeTo="$parentValue" relativePoint="RIGHT" x="5" y="0"/>
+                </Anchors>
+                <Scripts>
+                    <OnLoad>
+                        self:SetText("-")
+                    </OnLoad>
+                </Scripts>
+            </Button>
+            <Button name="$parentPlus" inherits="UIPanelButtonTemplate">
+                <Size x="20" y="20"/>
+                <Anchors>
+                    <Anchor point="LEFT" relativeTo="$parentMinus" relativePoint="RIGHT" x="2" y="0"/>
+                </Anchors>
+                <Scripts>
+                    <OnLoad>
+                        self:SetText("+")
+                    </OnLoad>
+                </Scripts>
+            </Button>
+        </Frames>
+    </Frame>
+
+    <!-- Dice Button Template -->
+    <Button name="CE_DiceButtonTemplate" inherits="UIPanelButtonTemplate" virtual="true">
+        <Size x="60" y="60"/>
+        <Layers>
+            <Layer level="OVERLAY">
+                <Texture name="$parentIcon">
+                    <Size x="40" y="40"/>
+                    <Anchors>
+                        <Anchor point="CENTER"/>
+                    </Anchors>
+                </Texture>
+            </Layer>
+        </Layers>
+    </Button>
+
+    <!-- Trait Frame Template -->
+    <Frame name="CE_TraitTemplate" virtual="true" inherits="BackdropTemplate">
+        <Size x="350" y="80"/>
+        <KeyValues>
+            <KeyValue key="backdropInfo" value="BACKDROP_DIALOG_16_16" type="global"/>
+        </KeyValues>
+        <Layers>
+            <Layer level="ARTWORK">
+                <FontString name="$parentName" inherits="GameFontNormal" justifyH="LEFT">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" x="10" y="-10"/>
+                    </Anchors>
+                </FontString>
+                <FontString name="$parentUses" inherits="GameFontHighlight" justifyH="RIGHT">
+                    <Anchors>
+                        <Anchor point="TOPRIGHT" x="-10" y="-10"/>
+                    </Anchors>
+                </FontString>
+            </Layer>
+        </Layers>
+        <Frames>
+            <ScrollFrame name="$parentScroll" inherits="UIPanelScrollFrameTemplate">
+                <Size x="330" y="40"/>
+                <Anchors>
+                    <Anchor point="TOPLEFT" x="10" y="-30"/>
+                </Anchors>
+                <ScrollChild>
+                    <EditBox name="$parentDescription" multiLine="true" autoFocus="false">
+                        <Size x="310" y="40"/>
+                        <FontString inherits="GameFontWhite"/>
+                    </EditBox>
+                </ScrollChild>
+            </ScrollFrame>
+        </Frames>
+        <Scripts>
+            <OnLoad>
+                self:SetBackdrop({
+                    bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+                    edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+                    tile = true, tileSize = 32, edgeSize = 16,
+                    insets = { left = 5, right = 5, top = 5, bottom = 5 }
+                })
+            </OnLoad>
+        </Scripts>
+    </Frame>
+</Ui>

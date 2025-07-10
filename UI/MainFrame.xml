@@ -1,0 +1,23 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <Frame name="CE_MainFrame" parent="UIParent" toplevel="true" movable="true" enableMouse="true" hidden="true" inherits="BackdropTemplate">
+        <Size x="900" y="600"/>
+        <Anchors>
+            <Anchor point="CENTER"/>
+        </Anchors>
+        
+        <Scripts>
+            <OnLoad>
+                self:RegisterForDrag("LeftButton")
+                self:SetClampedToScreen(true)
+                self:SetFrameStrata("MEDIUM")
+                self:SetFrameLevel(10)
+            </OnLoad>
+            <OnDragStart>
+                self:StartMoving()
+            </OnDragStart>
+            <OnDragStop>
+                self:StopMovingOrSizing()
+            </OnDragStop>
+        </Scripts>
+    </Frame>
+</Ui>
