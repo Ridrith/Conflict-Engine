@@ -19,7 +19,16 @@ local defaults = {
         }
     },
     char = {
-        -- Character-specific data
+        -- Character-specific data that should remain per-character
+        ui = {
+            position = {},
+            scale = 1,
+            outputPosition = {},
+            mainWindowShown = false
+        }
+    },
+    profile = {
+        -- Profile-based data (unique per profile) - MOVED FROM CHAR
         attributes = {
             Might = 0,
             Finesse = 0,
@@ -44,16 +53,20 @@ local defaults = {
             customDefense = 0,
             customDR = 0
         },
+        characterSheet = {
+            currentStrikes = 0,
+            maxStrikes = 5,
+            name = "",
+            title = "",
+            background = "",
+            origin = "",
+            age = "",
+            height = "",
+            weight = "",
+            eyes = "",
+            notes = ""
+        },
         rollHistory = {},
-        ui = {
-            position = {},
-            scale = 1,
-            outputPosition = {},
-            mainWindowShown = false
-        }
-    },
-    profile = {
-        -- Profile-based settings (can be shared between characters)
         templates = {}
     }
 }
@@ -90,6 +103,9 @@ function Database:RefreshUI()
     if CE.UI.ConfigPanel and CE.UI.ConfigPanel.RefreshValues then
         CE.UI.ConfigPanel:RefreshValues()
     end
+    if CE.UI.CharacterSheetPanel and CE.UI.CharacterSheetPanel.UpdateAllDisplays then
+        CE.UI.CharacterSheetPanel:UpdateAllDisplays()
+    end
 end
 
 function Database:GetCurrentCharacter()
@@ -105,73 +121,124 @@ function Database:SetSetting(key, value)
     self.db.global.settings[key] = value
 end
 
+-- UPDATED: Now uses profile scope instead of char scope
 function Database:GetAttribute(name)
-    return self.db.char.attributes[name] or 0
+    return self.db.profile.attributes[name] or 0
 end
 
 function Database:SetAttribute(name, value)
-    self.db.char.attributes[name] = math.max(CE.Constants.ATTRIBUTE_MIN, math.min(CE.Constants.ATTRIBUTE_MAX, value))
+    self.db.profile.attributes[name] = math.max(CE.Constants.ATTRIBUTE_MIN, math.min(CE.Constants.ATTRIBUTE_MAX, value))
 end
 
 function Database:GetCurrency()
-    return self.db.char.currency
+    return self.db.profile.currency
 end
 
 function Database:SetCurrency(typeOrTable, amount)
     -- Handle both table and individual currency updates
     if type(typeOrTable) == "table" then
         -- Full currency update with table
-        self.db.char.currency.gold = math.max(0, typeOrTable.gold or 0)
-        self.db.char.currency.silver = math.max(0, typeOrTable.silver or 0)
-        self.db.char.currency.copper = math.max(0, typeOrTable.copper or 0)
+        self.db.profile.currency.gold = math.max(0, typeOrTable.gold or 0)
+        self.db.profile.currency.silver = math.max(0, typeOrTable.silver or 0)
+        self.db.profile.currency.copper = math.max(0, typeOrTable.copper or 0)
     else
         -- Individual currency type update
         if typeOrTable and amount then
-            self.db.char.currency[typeOrTable] = math.max(0, amount)
+            self.db.profile.currency[typeOrTable] = math.max(0, amount)
         end
     end
 end
 
 function Database:AddCurrency(type, amount)
-    self.db.char.currency[type] = math.max(0, (self.db.char.currency[type] or 0) + amount)
+    self.db.profile.currency[type] = math.max(0, (self.db.profile.currency[type] or 0) + amount)
 end
 
 function Database:GetTraits()
-    return self.db.char.traits
+    return self.db.profile.traits
 end
 
 function Database:AddTrait(trait)
-    table.insert(self.db.char.traits, trait)
+    table.insert(self.db.profile.traits, trait)
 end
 
 function Database:RemoveTrait(index)
-    table.remove(self.db.char.traits, index)
+    table.remove(self.db.profile.traits, index)
 end
 
 function Database:UpdateTrait(index, trait)
-    if self.db.char.traits[index] then
-        self.db.char.traits[index] = trait
+    if self.db.profile.traits[index] then
+        self.db.profile.traits[index] = trait
     end
 end
 
 function Database:GetDefense()
-    return self.db.char.defense
+    return self.db.profile.defense
 end
 
 function Database:SetDefense(key, value)
-    self.db.char.defense[key] = value
+    self.db.profile.defense[key] = value
+end
+
+-- Character Sheet functions
+function Database:GetCharacterSheet()
+    return self.db.profile.characterSheet
+end
+
+function Database:SetCharacterSheetField(key, value)
+    self.db.profile.characterSheet[key] = value
+end
+
+function Database:GetCharacterSheetField(key)
+    return self.db.profile.characterSheet[key]
+end
+
+-- Strikes management - UPDATED to properly handle variable max strikes
+function Database:GetStrikes()
+    local sheet = self.db.profile.characterSheet
+    local currentStrikes = sheet.currentStrikes or 0
+    local maxStrikes = sheet.maxStrikes or 5  -- Default to 5 if not set
+    return currentStrikes, maxStrikes
+end
+
+function Database:SetStrikes(current, max)
+    if current ~= nil then
+        self.db.profile.characterSheet.currentStrikes = math.max(0, math.min(max or self.db.profile.characterSheet.maxStrikes, current))
+    end
+    if max ~= nil then
+        self.db.profile.characterSheet.maxStrikes = math.max(1, math.min(10, max))  -- Cap at 10
+        -- Ensure current doesn't exceed new max
+        self.db.profile.characterSheet.currentStrikes = math.min(self.db.profile.characterSheet.currentStrikes, self.db.profile.characterSheet.maxStrikes)
+    end
+end
+
+function Database:ModifyStrikes(amount)
+    local sheet = self.db.profile.characterSheet
+    local currentStrikes = sheet.currentStrikes or 0
+    local maxStrikes = sheet.maxStrikes or 5
+    
+    currentStrikes = currentStrikes + amount
+    
+    -- Clamp between 0 and max
+    if currentStrikes < 0 then
+        currentStrikes = 0
+    elseif currentStrikes > maxStrikes then
+        currentStrikes = maxStrikes
+    end
+    
+    self.db.profile.characterSheet.currentStrikes = currentStrikes
+    return currentStrikes
 end
 
 function Database:AddRollToHistory(rollData)
-    table.insert(self.db.char.rollHistory, 1, rollData)
+    table.insert(self.db.profile.rollHistory, 1, rollData)
     -- Keep only last 100 rolls
-    while #self.db.char.rollHistory > 100 do
-        table.remove(self.db.char.rollHistory)
+    while #self.db.profile.rollHistory > 100 do
+        table.remove(self.db.profile.rollHistory)
     end
 end
 
 function Database:GetRollHistory()
-    return self.db.char.rollHistory
+    return self.db.profile.rollHistory
 end
 
 -- Profile management functions
@@ -185,10 +252,6 @@ end
 
 function Database:CopyProfile(name)
     self.db:CopyProfile(name)
-end
-
-function Database:DeleteProfile(name)
-    self.db:DeleteProfile(name)
 end
 
 function Database:ResetProfile()

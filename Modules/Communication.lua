@@ -7,6 +7,9 @@ function Communication:Initialize()
     self.prefix = CE.Constants.COMM_PREFIX
     C_ChatInfo.RegisterAddonMessagePrefix(self.prefix)
     
+    -- Initialize callback system
+    self.callbacks = {}
+    
     -- Register event using the addon object that has AceEvent
     CE.addon:RegisterEvent("CHAT_MSG_ADDON", function(_, prefix, message, channel, sender)
         if prefix == self.prefix then
@@ -23,9 +26,106 @@ function Communication:Initialize()
     end
 end
 
+-- Callback system methods
+function Communication:RegisterCallback(event, callback, owner)
+    if not self.callbacks then
+        self.callbacks = {}
+    end
+    
+    if not self.callbacks[event] then
+        self.callbacks[event] = {}
+    end
+    
+    table.insert(self.callbacks[event], {
+        callback = callback,
+        owner = owner
+    })
+end
+
+function Communication:UnregisterCallback(event, owner)
+    if not self.callbacks or not self.callbacks[event] then
+        return
+    end
+    
+    for i = #self.callbacks[event], 1, -1 do
+        if self.callbacks[event][i].owner == owner then
+            table.remove(self.callbacks[event], i)
+        end
+    end
+end
+
+function Communication:TriggerCallback(event, ...)
+    if not self.callbacks or not self.callbacks[event] then
+        return
+    end
+    
+    for _, callbackData in ipairs(self.callbacks[event]) do
+        if callbackData.callback then
+            local success, err = pcall(callbackData.callback, ...)
+            if not success then
+                print("|cFFFF0000[CE Error]|r Callback error:", err)
+            end
+        end
+    end
+end
+
+function Communication:UnregisterAllCallbacks(owner)
+    if not self.callbacks then
+        return
+    end
+    
+    for event, callbacks in pairs(self.callbacks) do
+        for i = #callbacks, 1, -1 do
+            if callbacks[i].owner == owner then
+                table.remove(callbacks, i)
+            end
+        end
+    end
+end
+
+-- FIXED: More robust player name checking
+function Communication:IsPlayerSender(sender)
+    local playerName = UnitName("player")
+    
+    -- Get the base name without server (everything before the dash)
+    local playerBase = playerName:match("^([^-]+)")
+    local senderBase = sender:match("^([^-]+)")
+    
+    -- Check exact matches first
+    if sender == playerName then
+        return true
+    end
+    
+    -- Check if the base names match (handles server name variations)
+    if playerBase and senderBase and playerBase == senderBase then
+        return true
+    end
+    
+    -- Additional check: try with full realm name
+    local realmName = GetRealmName()
+    local playerNameFull = playerName .. "-" .. realmName
+    if sender == playerNameFull then
+        return true
+    end
+    
+    -- Check normalized realm name (replace spaces with nothing, etc.)
+    local normalizedRealm = realmName:gsub("%s+", "")
+    local playerNameNormalized = playerName .. "-" .. normalizedRealm
+    if sender == playerNameNormalized then
+        return true
+    end
+    
+    return false
+end
+
 function Communication:HandleMessage(message, channel, sender)
     local success, data = pcall(function() return {strsplit("|", message)} end)
     if not success or not data[1] then return end
+    
+    -- FIXED: Skip messages from ourselves using robust name checking
+    if self:IsPlayerSender(sender) then
+        return
+    end
     
     local messageType = data[1]
     

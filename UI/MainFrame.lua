@@ -4,59 +4,99 @@ local MainFrame = {}
 CE.UI = CE.UI or {}
 CE.UI.MainFrame = MainFrame
 
+-- Minimum and maximum sizes for resizing
+local MIN_WIDTH = 600
+local MIN_HEIGHT = 400
+local MAX_WIDTH = 1200
+local MAX_HEIGHT = 800
+
 function MainFrame:Initialize()
-    -- Make sure frame exists with BackdropTemplate
-    if not CE_MainFrame then
-        -- Create frame with BackdropTemplate mixin
-        local frame = CreateFrame("Frame", "CE_MainFrame", UIParent, "BackdropTemplate")
-        frame:SetSize(900, 600)
-        frame:SetPoint("CENTER")
-        frame:Hide()
-    end
-    
-    self.frame = CE_MainFrame
-    
-    -- Clear any existing points first
-    self.frame:ClearAllPoints()
-    
-    -- Set frame properties
+    self.frame = CreateFrame("Frame", "CE_MainFrame", UIParent, "BackdropTemplate")
     self.frame:SetSize(900, 600)
-    self.frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+    self.frame:SetPoint("CENTER")
+    
+    -- Frame properties
     self.frame:SetMovable(true)
+    self.frame:SetResizable(true)
     self.frame:SetClampedToScreen(true)
     self.frame:SetFrameStrata("MEDIUM")
-    self.frame:SetFrameLevel(1)
+    self.frame:EnableMouse(true)
+    self.frame:RegisterForDrag("LeftButton")
+    self.frame:SetScript("OnDragStart", function(frame)
+        frame:StartMoving()
+    end)
+    self.frame:SetScript("OnDragStop", function(frame)
+        frame:StopMovingOrSizing()
+    end)
+
+    -- Set resize bounds with fallback
+    if self.frame.SetResizeBounds then
+        self.frame:SetResizeBounds(950, 650, 1500, 950)
+    else
+        -- Fallback for older clients
+        self.frame:SetMinResize(950, 650)
+        self.frame:SetMaxResize(1500, 950)
+    end
     
-    -- Main backdrop
+    -- Dark obsidian background with silver border
     self.frame:SetBackdrop({
         bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
         edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
         tile = true,
-        tileSize = 32,
+        tileSize = 256,
         edgeSize = 32,
         insets = { left = 11, right = 12, top = 12, bottom = 11 }
     })
-    self.frame:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
-    self.frame:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+    self.frame:SetBackdropColor(0.02, 0.02, 0.03, 0.98) -- Nearly black
+    self.frame:SetBackdropBorderColor(0.6, 0.6, 0.65, 0.9) -- Pale silver
+    
+    -- Create resize button with silver tint
+    local resizeButton = CreateFrame("Button", nil, self.frame)
+    resizeButton:SetSize(16, 16)
+    resizeButton:SetPoint("BOTTOMRIGHT", -6, 7)
+    resizeButton:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+    resizeButton:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+    resizeButton:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+    resizeButton:GetNormalTexture():SetVertexColor(0.5, 0.5, 0.55) -- Silver tint
+    resizeButton:GetHighlightTexture():SetVertexColor(0.7, 0.65, 0.5) -- Pale gold highlight
+    resizeButton:SetScript("OnMouseDown", function()
+        self.frame:StartSizing("BOTTOMRIGHT")
+    end)
+    resizeButton:SetScript("OnMouseUp", function()
+        self.frame:StopMovingOrSizing()
+        self:SavePosition()
+    end)
     
     -- Create all UI elements
     self:CreateHeader()
     self:CreateTabButtons()
-    self:CreateContentFrames()
+    self:CreateContentArea()
     
-    -- Initialize panels AFTER content frames are created
+    -- Initialize panels after frames exist
     C_Timer.After(0, function()
-        CE.UI.AttributesPanel:Initialize(self.attributesFrame)
-        CE.UI.DicePanel:Initialize(self.diceFrame)
-        CE.UI.TraitsPanel:Initialize(self.traitsFrame)
-        CE.UI.DefensePanel:Initialize(self.defenseFrame)
-        CE.UI.ConfigPanel:Initialize(self.configFrame)
+        if CE.UI.AttributesPanel then
+            CE.UI.AttributesPanel:Initialize(self.attributesFrame)
+        end
+        if CE.UI.DicePanel then
+            CE.UI.DicePanel:Initialize(self.diceFrame)
+        end
+        if CE.UI.TraitsPanel then
+            CE.UI.TraitsPanel:Initialize(self.traitsFrame)
+        end
+        if CE.UI.DefensePanel then
+            CE.UI.DefensePanel:Initialize(self.defenseFrame)
+        end
+        if CE.UI.ConfigPanel then
+            CE.UI.ConfigPanel:Initialize(self.configFrame)
+        end
+        if CE.UI.CharacterSheetPanel then
+            CE.UI.CharacterSheetPanel:Initialize(self.characterSheetFrame)
+        end
         
-        -- Show first tab
         self:SelectTab(1)
     end)
     
-    -- Make draggable
+    -- Dragging
     self.frame:RegisterForDrag("LeftButton")
     self.frame:SetScript("OnDragStart", function(frame) 
         frame:StartMoving() 
@@ -65,260 +105,311 @@ function MainFrame:Initialize()
         frame:StopMovingOrSizing()
         self:SavePosition()
     end)
+    
+    -- Handle resize events
+    self.frame:SetScript("OnSizeChanged", function()
+        self:OnResize()
+    end)
 end
 
 function MainFrame:CreateHeader()
-    -- Header container
+    -- Dark metallic header background
     local header = CreateFrame("Frame", nil, self.frame, "BackdropTemplate")
-    header:SetHeight(70)
-    header:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 10, -10)
-    header:SetPoint("TOPRIGHT", self.frame, "TOPRIGHT", -10, -10)
+    header:SetHeight(85)
+    header:SetPoint("TOPLEFT", 15, -15)
+    header:SetPoint("TOPRIGHT", -15, -15)
     header:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true,
         tileSize = 16,
         edgeSize = 16,
         insets = { left = 4, right = 4, top = 4, bottom = 4 }
     })
-    header:SetBackdropColor(0.05, 0.05, 0.05, 1)
-    header:SetBackdropBorderColor(0.6, 0.5, 0.2, 1)
+    header:SetBackdropColor(0.08, 0.08, 0.1, 0.95) -- Very dark grey-blue
+    header:SetBackdropBorderColor(0.3, 0.25, 0.35, 1) -- Dark purple-grey border
     
-    -- Logo background
-    local logoBg = header:CreateTexture(nil, "BACKGROUND")
-    logoBg:SetSize(60, 60)
-    logoBg:SetPoint("LEFT", header, "LEFT", 5, 0)
-    logoBg:SetColorTexture(0, 0, 0, 0.5)
+    -- Burgundy accent strip at top
+    local accentStrip = header:CreateTexture(nil, "ARTWORK")
+    accentStrip:SetHeight(3)
+    accentStrip:SetPoint("TOPLEFT", 1, -1)
+    accentStrip:SetPoint("TOPRIGHT", -1, -1)
+    accentStrip:SetColorTexture(0.4, 0.1, 0.15, 0.9) -- Burgundy
     
-    -- Logo
-    local logo = header:CreateTexture(nil, "ARTWORK")
-    logo:SetSize(50, 50)
-    logo:SetPoint("CENTER", logoBg, "CENTER", 0, 0)
-    logo:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
+    -- Decorative corners with pale gold
+    local cornerTL = header:CreateTexture(nil, "OVERLAY")
+    cornerTL:SetSize(32, 32)
+    cornerTL:SetPoint("TOPLEFT", -5, 5)
+    cornerTL:SetTexture("Interface\\Artifacts\\Artifacts-PerkRing-Final-Mask")
+    cornerTL:SetVertexColor(0.65, 0.6, 0.45, 0.6) -- Pale gold, subdued
     
-    -- Logo border
-    local logoBorder = header:CreateTexture(nil, "OVERLAY")
-    logoBorder:SetSize(64, 64)
-    logoBorder:SetPoint("CENTER", logo, "CENTER", 0, 0)
-    logoBorder:SetAtlas("talents-node-choiceflyout-square")
-    logoBorder:SetVertexColor(0.8, 0.6, 0.2)
+    local cornerTR = header:CreateTexture(nil, "OVERLAY")
+    cornerTR:SetSize(32, 32)
+    cornerTR:SetPoint("TOPRIGHT", 5, 5)
+    cornerTR:SetTexture("Interface\\Artifacts\\Artifacts-PerkRing-Final-Mask")
+    cornerTR:SetTexCoord(1, 0, 0, 1)
+    cornerTR:SetVertexColor(0.65, 0.6, 0.45, 0.6) -- Pale gold, subdued
     
-    -- Title
+    -- Dark shield emblem background
+    local emblemBg = header:CreateTexture(nil, "BACKGROUND")
+    emblemBg:SetSize(70, 70)
+    emblemBg:SetPoint("LEFT", 10, 0)
+    emblemBg:SetTexture("Interface\\Achievements\\UI-Achievement-IconFrame")
+    emblemBg:SetVertexColor(0.15, 0.15, 0.18, 0.9) -- Dark grey-blue
+    
+    -- Icon with burgundy glow
+    local iconGlow = header:CreateTexture(nil, "ARTWORK", nil, -1)
+    iconGlow:SetSize(56, 56)
+    iconGlow:SetPoint("CENTER", emblemBg, "CENTER", 0, -2)
+    iconGlow:SetTexture("Interface\\Cooldown\\star4")
+    iconGlow:SetVertexColor(0.4, 0.1, 0.15, 0.3) -- Burgundy glow
+    iconGlow:SetBlendMode("ADD")
+    
+    local icon = header:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(46, 46)
+    icon:SetPoint("CENTER", emblemBg, "CENTER", 0, -2)
+    icon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
+    icon:SetVertexColor(0.85, 0.85, 0.9) -- Slightly bluish silver
+    
+    -- Title with silver gradient effect
     local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("LEFT", logoBg, "RIGHT", 15, 10)
-    local titleFont = {title:GetFont()}
-    title:SetFont(titleFont[1], 22, "OUTLINE")
+    title:SetPoint("LEFT", emblemBg, "RIGHT", 15, 12)
+    local font, size = title:GetFont()
+    title:SetFont(font, 24, "THICKOUTLINE")
     title:SetText("CONFLICT ENGINE")
-    title:SetTextColor(0.9, 0.75, 0.3)
+    title:SetTextColor(0.85, 0.82, 0.75) -- Pale gold-silver
+    title:SetShadowOffset(3, -3)
+    title:SetShadowColor(0, 0, 0, 1)
     
-    -- Subtitle
+    -- Subtitle with darker silver
     local subtitle = header:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    subtitle:SetPoint("LEFT", logoBg, "RIGHT", 15, -10)
+    subtitle:SetPoint("LEFT", emblemBg, "RIGHT", 15, -10)
     subtitle:SetText("Advanced Roleplaying System")
-    subtitle:SetTextColor(0.6, 0.6, 0.6)
+    subtitle:SetTextColor(0.55, 0.55, 0.6) -- Muted silver
     
-    -- Version
-    local version = header:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    version:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -10, 5)
-    version:SetText("v1.0.0")
-    version:SetTextColor(0.4, 0.4, 0.4)
+    -- Separator line with burgundy accent
+    local separator = header:CreateTexture(nil, "ARTWORK")
+    separator:SetHeight(1)
+    separator:SetPoint("BOTTOMLEFT", 20, 8)
+    separator:SetPoint("BOTTOMRIGHT", -20, 8)
+    separator:SetColorTexture(0.35, 0.08, 0.12, 0.6) -- Burgundy line
     
-    -- Fixed close button to close entire frame
-    local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
-    closeBtn:SetPoint("TOPRIGHT", header, "TOPRIGHT", 5, 5)
-    closeBtn:SetSize(30, 30)
+    -- Close button with custom dark style
+    local closeBtn = CreateFrame("Button", nil, self.frame, "UIPanelCloseButton")
+    closeBtn:SetPoint("TOPRIGHT", header, "TOPRIGHT", 2, 2)
+    closeBtn:GetNormalTexture():SetVertexColor(0.6, 0.6, 0.65) -- Silver
+    closeBtn:GetHighlightTexture():SetVertexColor(0.85, 0.82, 0.75) -- Pale gold highlight
     closeBtn:SetScript("OnClick", function()
-        self.frame:Hide()  -- Hide the entire frame, not just the header
+        self:Hide()
     end)
     
     -- Currency display
-    CE.UI.CurrencyDisplay:Initialize(header)
+    if CE.UI.CurrencyDisplay then
+        CE.UI.CurrencyDisplay:Initialize(header)
+    end
     
     self.header = header
 end
 
 function MainFrame:CreateTabButtons()
-    -- Tab container
-    local tabContainer = CreateFrame("Frame", nil, self.frame)
-    tabContainer:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 10, -85)
-    tabContainer:SetPoint("TOPRIGHT", self.frame, "TOPRIGHT", -10, -85)
-    tabContainer:SetHeight(35)
+    -- Tab bar with dark metallic background
+    local tabBar = CreateFrame("Frame", nil, self.frame, "BackdropTemplate")
+    tabBar:SetHeight(40)
+    tabBar:SetPoint("TOPLEFT", 15, -105)
+    tabBar:SetPoint("TOPRIGHT", -15, -105)
+    tabBar:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        tile = true,
+        tileSize = 16,
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 12,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 }
+    })
+    tabBar:SetBackdropColor(0.05, 0.05, 0.07, 0.95) -- Nearly black
+    tabBar:SetBackdropBorderColor(0.25, 0.25, 0.3, 0.8) -- Dark silver border
     
-    -- Tab data - added Config tab
     self.tabData = {
-        {
-            id = 1,
-            name = "Attributes",
-            icon = "Interface\\Icons\\Spell_Holy_WordFortitude"
-        },
-        {
-            id = 2,
-            name = "Dice Roller",
-            icon = "Interface\\Icons\\INV_Misc_Dice_01"
-        },
-        {
-            id = 3,
-            name = "Traits",
-            icon = "Interface\\Icons\\INV_Misc_Book_07"
-        },
-        {
-            id = 4,
-            name = "Defense",
-            icon = "Interface\\Icons\\INV_Shield_04"
-        },
-        {
-            id = 5,
-            name = "Config",
-            icon = "Interface\\Icons\\Trade_Engineering"
-        }
+        { id = 1, name = "Attributes", icon = "Interface\\Icons\\Spell_Holy_WordFortitude" },
+        { id = 2, name = "Dice", icon = "Interface\\Icons\\INV_Misc_Dice_01" },
+        { id = 3, name = "Traits", icon = "Interface\\Icons\\INV_Misc_Book_07" },
+        { id = 4, name = "Defense", icon = "Interface\\Icons\\INV_Shield_04" },
+        { id = 5, name = "Character", icon = "Interface\\Icons\\INV_Misc_Book_11" },
+        { id = 6, name = "Settings", icon = "Interface\\Icons\\Trade_Engineering" }
     }
     
     self.tabs = {}
+    self.tabBar = tabBar
     
-    -- Create tabs
     for i, data in ipairs(self.tabData) do
-        local tab = self:CreateTab(tabContainer, data, i)
+        local tab = self:CreateTab(tabBar, data, i)
         self.tabs[data.id] = tab
     end
 end
 
 function MainFrame:CreateTab(parent, data, index)
     local tab = CreateFrame("Button", nil, parent)
-    tab:SetSize(140, 35)  -- Slightly smaller to fit 5 tabs
-    tab:SetPoint("LEFT", parent, "LEFT", (index - 1) * 145, 0)
-    
-    -- Tab background
+    tab:SetSize(140, 36)
+
+    -- Background texture (unselected) - dark with subtle texture
     tab.bg = tab:CreateTexture(nil, "BACKGROUND")
     tab.bg:SetAllPoints()
-    tab.bg:SetColorTexture(0.15, 0.15, 0.15, 0.8)
-    
-    -- Selected glow
-    tab.selectedGlow = tab:CreateTexture(nil, "BACKGROUND", nil, 1)
-    tab.selectedGlow:SetPoint("TOPLEFT", tab, "TOPLEFT", -2, 2)
-    tab.selectedGlow:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", 2, -2)
-    tab.selectedGlow:SetColorTexture(0.8, 0.6, 0.2, 0.2)
-    tab.selectedGlow:Hide()
-    
-    -- Border
-    tab.border = CreateFrame("Frame", nil, tab, "BackdropTemplate")
-    tab.border:SetAllPoints()
-    tab.border:SetBackdrop({
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        edgeSize = 16,
-    })
-    tab.border:SetBackdropBorderColor(0.3, 0.3, 0.3, 0.8)
-    
-    -- Selected indicator
-    tab.selectedBar = tab:CreateTexture(nil, "ARTWORK")
-    tab.selectedBar:SetHeight(3)
-    tab.selectedBar:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", 4, 0)
-    tab.selectedBar:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -4, 0)
-    tab.selectedBar:SetColorTexture(0.8, 0.6, 0.2, 1)
-    tab.selectedBar:Hide()
-    
+    tab.bg:SetColorTexture(0.12, 0.12, 0.15, 0.4) -- Dark grey-blue
+    tab.bg:Hide()
+
+    -- Selected background - burgundy accent
+    tab.selectedBg = tab:CreateTexture(nil, "BACKGROUND", nil, 1)
+    tab.selectedBg:SetPoint("BOTTOMLEFT", 4, 2)
+    tab.selectedBg:SetPoint("BOTTOMRIGHT", -4, 2)
+    tab.selectedBg:SetHeight(2)
+    tab.selectedBg:SetColorTexture(0.5, 0.12, 0.18, 0.9) -- Burgundy underline
+    tab.selectedBg:Hide()
+
+    -- Icon border with dark silver
+    local iconBorder = tab:CreateTexture(nil, "ARTWORK")
+    iconBorder:SetSize(28, 28)
+    iconBorder:SetPoint("LEFT", 10, 0)
+    iconBorder:SetTexture("Interface\\Common\\RingBorder")
+    iconBorder:SetVertexColor(0.3, 0.3, 0.35) -- Dark silver
+
     -- Icon
-    tab.icon = tab:CreateTexture(nil, "ARTWORK")
+    tab.icon = tab:CreateTexture(nil, "ARTWORK", nil, 1)
     tab.icon:SetSize(20, 20)
-    tab.icon:SetPoint("LEFT", tab, "LEFT", 10, 0)
+    tab.icon:SetPoint("CENTER", iconBorder)
     tab.icon:SetTexture(data.icon)
-    
+    tab.icon:SetVertexColor(0.5, 0.5, 0.55) -- Muted silver
+
     -- Text
     tab.text = tab:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    tab.text:SetPoint("LEFT", tab.icon, "RIGHT", 8, 0)
+    tab.text:SetPoint("LEFT", iconBorder, "RIGHT", 8, 1)
+    tab.text:SetJustifyH("LEFT")
+    tab.text:SetWidth(100)
     tab.text:SetText(data.name)
-    
-    -- Hover effect
+    tab.text:SetTextColor(0.6, 0.6, 0.65) -- Silver-grey
+
+    -- Hover
     tab:SetScript("OnEnter", function()
         if not tab.isSelected then
-            tab.bg:SetColorTexture(0.2, 0.2, 0.2, 0.9)
-            tab.border:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
+            tab.bg:Show()
+            tab.text:SetTextColor(0.85, 0.82, 0.75) -- Pale gold on hover
+            tab.icon:SetVertexColor(0.7, 0.65, 0.5) -- Pale gold tint
         end
     end)
-    
+
     tab:SetScript("OnLeave", function()
         if not tab.isSelected then
-            tab.bg:SetColorTexture(0.15, 0.15, 0.15, 0.8)
-            tab.border:SetBackdropBorderColor(0.3, 0.3, 0.3, 0.8)
+            tab.bg:Hide()
+            tab.text:SetTextColor(0.6, 0.6, 0.65) -- Back to silver
+            tab.icon:SetVertexColor(0.5, 0.5, 0.55) -- Back to silver
         end
     end)
-    
-    -- Click handler
+
     tab:SetScript("OnClick", function()
         self:SelectTab(data.id)
     end)
-    
+
     tab.id = data.id
     return tab
 end
 
-function MainFrame:CreateContentFrames()
-    -- Main content area
+function MainFrame:CreateContentArea()
+    -- Main content with dark background
     local content = CreateFrame("Frame", nil, self.frame, "BackdropTemplate")
-    content:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 10, -125)
-    content:SetPoint("BOTTOMRIGHT", self.frame, "BOTTOMRIGHT", -10, 10)
+    content:SetPoint("TOPLEFT", 15, -150)
+    content:SetPoint("BOTTOMRIGHT", -15, 15)
     content:SetBackdrop({
         bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true,
-        tileSize = 16,
+        tileSize = 256,
         edgeSize = 16,
         insets = { left = 4, right = 4, top = 4, bottom = 4 }
     })
-    content:SetBackdropColor(0.05, 0.05, 0.05, 0.9)
-    content:SetBackdropBorderColor(0.3, 0.3, 0.3, 0.8)
+    content:SetBackdropColor(0.02, 0.02, 0.03, 0.95) -- Nearly black
+    content:SetBackdropBorderColor(0.25, 0.22, 0.28, 0.8) -- Dark purple-grey
     
-    -- Create individual content frames for each tab
+    -- Subtle inner glow
+    local innerGlow = content:CreateTexture(nil, "BACKGROUND", nil, 1)
+    innerGlow:SetPoint("TOPLEFT", 4, -4)
+    innerGlow:SetPoint("BOTTOMRIGHT", -4, 4)
+    innerGlow:SetTexture("Interface\\Tooltips\\UI-Tooltip-Background")
+    innerGlow:SetVertexColor(0.15, 0.12, 0.18, 0.2) -- Very subtle purple glow
+    innerGlow:SetBlendMode("ADD")
+    
+    -- Content frames
     self.attributesFrame = CreateFrame("Frame", nil, content)
-    self.attributesFrame:SetAllPoints(content)
+    self.attributesFrame:SetPoint("TOPLEFT", 10, -10)
+    self.attributesFrame:SetPoint("BOTTOMRIGHT", -10, 10)
     self.attributesFrame:Hide()
     
     self.diceFrame = CreateFrame("Frame", nil, content)
-    self.diceFrame:SetAllPoints(content)
+    self.diceFrame:SetPoint("TOPLEFT", 10, -10)
+    self.diceFrame:SetPoint("BOTTOMRIGHT", -10, 10)
     self.diceFrame:Hide()
     
     self.traitsFrame = CreateFrame("Frame", nil, content)
-    self.traitsFrame:SetAllPoints(content)
+    self.traitsFrame:SetPoint("TOPLEFT", 10, -10)
+    self.traitsFrame:SetPoint("BOTTOMRIGHT", -10, 10)
     self.traitsFrame:Hide()
     
     self.defenseFrame = CreateFrame("Frame", nil, content)
-    self.defenseFrame:SetAllPoints(content)
+    self.defenseFrame:SetPoint("TOPLEFT", 10, -10)
+    self.defenseFrame:SetPoint("BOTTOMRIGHT", -10, 10)
     self.defenseFrame:Hide()
     
+    self.characterSheetFrame = CreateFrame("Frame", nil, content)
+    self.characterSheetFrame:SetPoint("TOPLEFT", 10, -10)
+    self.characterSheetFrame:SetPoint("BOTTOMRIGHT", -10, 10)
+    self.characterSheetFrame:Hide()
+    
     self.configFrame = CreateFrame("Frame", nil, content)
-    self.configFrame:SetAllPoints(content)
+    self.configFrame:SetPoint("TOPLEFT", 10, -10)
+    self.configFrame:SetPoint("BOTTOMRIGHT", -10, 10)
     self.configFrame:Hide()
     
     self.contentFrame = content
 end
 
 function MainFrame:SelectTab(id)
-    -- Hide all content frames
+    -- Hide all content
     self.attributesFrame:Hide()
     self.diceFrame:Hide()
     self.traitsFrame:Hide()
     self.defenseFrame:Hide()
+    self.characterSheetFrame:Hide()
     self.configFrame:Hide()
     
-    -- Update tab appearance
+    -- Update tabs
     for tabId, tab in pairs(self.tabs) do
         if tabId == id then
             tab.isSelected = true
-            tab.selectedGlow:Show()
-            tab.selectedBar:Show()
-            tab.bg:SetColorTexture(0.2, 0.2, 0.2, 1)
-            tab.border:SetBackdropBorderColor(0.8, 0.6, 0.2, 1)
-            tab.text:SetTextColor(0.9, 0.75, 0.3)
+            tab.selectedBg:Show()
+            tab.bg:Hide()
+            tab.text:SetTextColor(0.95, 0.92, 0.85) -- Bright pale gold when selected
+            tab.icon:SetVertexColor(0.85, 0.8, 0.65) -- Pale gold
+            
+            -- Add subtle glow to selected icon
+            if not tab.iconGlow then
+                tab.iconGlow = tab:CreateTexture(nil, "ARTWORK", nil, -1)
+                tab.iconGlow:SetSize(32, 32)
+                tab.iconGlow:SetPoint("CENTER", tab.icon)
+                tab.iconGlow:SetTexture("Interface\\Cooldown\\star4")
+                tab.iconGlow:SetBlendMode("ADD")
+            end
+            tab.iconGlow:SetVertexColor(0.5, 0.12, 0.18, 0.4) -- Burgundy glow
+            tab.iconGlow:Show()
         else
             tab.isSelected = false
-            tab.selectedGlow:Hide()
-            tab.selectedBar:Hide()
-            tab.bg:SetColorTexture(0.15, 0.15, 0.15, 0.8)
-            tab.border:SetBackdropBorderColor(0.3, 0.3, 0.3, 0.8)
-            tab.text:SetTextColor(0.7, 0.7, 0.7)
+            tab.selectedBg:Hide()
+            tab.bg:Hide()
+            tab.text:SetTextColor(0.6, 0.6, 0.65) -- Silver when not selected
+            tab.icon:SetVertexColor(0.5, 0.5, 0.55) -- Silver
+            if tab.iconGlow then
+                tab.iconGlow:Hide()
+            end
         end
     end
     
-    -- Show selected content
+    -- Show selected
     if id == 1 then
         self.attributesFrame:Show()
     elseif id == 2 then
@@ -328,14 +419,40 @@ function MainFrame:SelectTab(id)
     elseif id == 4 then
         self.defenseFrame:Show()
     elseif id == 5 then
+        self.characterSheetFrame:Show()
+    elseif id == 6 then
         self.configFrame:Show()
     end
     
     self.selectedTab = id
 end
 
+function MainFrame:OnResize()
+    if self.tabBar and self.tabs then
+        local tabWidth = 140         -- Matches your tab:SetSize
+        local padding = 10           -- Space between tabs
+        local count = #self.tabData
+
+        -- Total width = all tabs + gaps between them
+        local totalWidth = (tabWidth * count) + (padding * (count - 1))
+        local barWidth = self.tabBar:GetWidth()
+
+        -- Ensure it's centered, but clamp to avoid negative positioning
+        local startX = math.max(10, math.floor((barWidth - totalWidth) / 2))
+
+        for i, data in ipairs(self.tabData) do
+            local tab = self.tabs[data.id]
+            if tab then
+                tab:ClearAllPoints()
+                tab:SetPoint("TOPLEFT", self.tabBar, "TOPLEFT", startX + (i - 1) * (tabWidth + padding), 0)
+            end
+        end
+    end
+end
+
 function MainFrame:Show()
     self.frame:Show()
+    self:OnResize() -- Ensure tabs are positioned correctly
 end
 
 function MainFrame:Hide()
@@ -352,23 +469,32 @@ end
 
 function MainFrame:SavePosition()
     local point, _, relPoint, x, y = self.frame:GetPoint()
+    local width, height = self.frame:GetSize()
     
-    if CE.Database.db and CE.Database.db.char then
+    if CE.Database and CE.Database.db and CE.Database.db.char then
+        CE.Database.db.char.ui = CE.Database.db.char.ui or {}
         CE.Database.db.char.ui.position = {
             point = point,
             relPoint = relPoint,
             x = x,
-            y = y
+            y = y,
+            width = width,
+            height = height
         }
     end
 end
 
 function MainFrame:LoadPosition()
-    if CE.Database.db and CE.Database.db.char then
-        local pos = CE.Database.db.char.ui.position
-        if pos and pos.point then
-            self.frame:ClearAllPoints()
-            self.frame:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
+    if CE.Database and CE.Database.db and CE.Database.db.char then
+        local pos = CE.Database.db.char.ui and CE.Database.db.char.ui.position
+        if pos then
+            if pos.point then
+                self.frame:ClearAllPoints()
+                self.frame:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
+            end
+            if pos.width and pos.height then
+                self.frame:SetSize(pos.width, pos.height)
+            end
         end
     end
 end

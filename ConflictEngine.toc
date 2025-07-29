@@ -3,10 +3,10 @@
 ## Author: Your Name
 ## Version: 1.0.0
 ## SavedVariables: ConflictEngineDB
-## Dependencies: 
 
-# Libraries
+# Dependencies
 Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
 Libs\AceAddon-3.0\AceAddon-3.0.xml
 Libs\AceDB-3.0\AceDB-3.0.xml
 Libs\AceEvent-3.0\AceEvent-3.0.xml
@@ -18,16 +18,22 @@ Core\Database.lua
 
 # Modules
 Modules\Communication.lua
+Modules\Attributes.lua
+Modules\Defense.lua
+Modules\Currency.lua
+Modules\Traits.lua
+Modules\DiceRoller.lua
 
-# UI Components
+# UI
 UI\Style.lua
 UI\Widgets.lua
 UI\AttributesPanel.lua
-UI\DicePanel.lua
-UI\TraitsPanel.lua
 UI\DefensePanel.lua
-UI\ConfigPanel.lua
+UI\CharacterSheetPanel.lua
 UI\CurrencyDisplay.lua
+UI\TraitsPanel.lua
+UI\ConfigPanel.lua
+UI\DicePanel.lua
 UI\MainFrame.lua
 
 # Main
